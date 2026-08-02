@@ -31,8 +31,9 @@ function fileToBase64(file) {
 }
 
 function bestOf(list) {
-  if (!list || list.length === 0) return null
-  return [...list].sort((a, b) => b.likes.length - a.likes.length)[0]
+  const safeList = list || []
+  if (safeList.length === 0) return null
+  return [...safeList].sort((a, b) => (b.likes?.length || 0) - (a.likes?.length || 0))[0]
 }
 
 export default function Page() {
@@ -163,13 +164,13 @@ function CharacterAvatar({ c, onClick }) {
         style={{ backgroundColor: '#ded2ba', borderColor: '#c9bda4' }}
       >
         {photo ? (
-          <img src={photo.base64} alt={c.name} className="w-full h-full object-cover" />
+          <img src={photo.base64} alt={c.name || ''} className="w-full h-full object-cover" />
         ) : (
-          <span className="px-1" style={{ color: '#6b5f4a' }}>{c.name}</span>
+          <span className="px-1" style={{ color: '#6b5f4a' }}>{c.name || ''}</span>
         )}
       </div>
       <span className="text-xs mt-1 truncate w-full text-center" style={{ color: '#4a4038' }}>
-        {c.name}
+        {c.name || ''}
       </span>
     </button>
   )
@@ -222,18 +223,21 @@ function AddModal({ userId, onClose, onDone, onError }) {
       return
     }
     setSubmitting(true)
-    const res = await fetch('/api/characters', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, bio, photoBase64, userId }),
-    })
-    const data = await res.json()
-    setSubmitting(false)
-    if (!res.ok) {
-      onError(data.error || '添加失败')
-      return
+    try {
+      const res = await fetch('/api/characters', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, bio, photoBase64, userId }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        onError(data.error || '添加失败')
+        return
+      }
+      onDone()
+    } finally {
+      setSubmitting(false)
     }
-    onDone()
   }
 
   return (
@@ -271,7 +275,7 @@ function AddModal({ userId, onClose, onDone, onError }) {
             className="flex-1 py-2 rounded text-white text-sm font-medium"
             style={{ backgroundColor: '#2a2420' }}
           >
-            确定
+            {submitting ? '提交中...' : '确定'}
           </button>
         </div>
       </div>
@@ -286,24 +290,35 @@ function DetailModal({ userId, initial, onClose, onChanged, onError }) {
   const [showAddPhoto, setShowAddPhoto] = useState(false)
   const [showAddBio, setShowAddBio] = useState(false)
   const [newBioText, setNewBioText] = useState('')
+  // 新增全局提交锁，防止重复点击
+  const [detailLoading, setDetailLoading] = useState(false)
 
-  const sortedPhotos = [...c.photos].sort((a, b) => b.likes.length - a.likes.length)
-  const sortedBios = [...c.bios].sort((a, b) => b.likes.length - a.likes.length)
+  // 兜底空数组防止报错
+  const safePhotos = c.photos || []
+  const safeBios = c.bios || []
+  const sortedPhotos = [...safePhotos].sort((a, b) => (b.likes?.length || 0) - (a.likes?.length || 0))
+  const sortedBios = [...safeBios].sort((a, b) => (b.likes?.length || 0) - (a.likes?.length || 0))
   const currentPhoto = sortedPhotos[photoIdx] || null
   const currentBio = sortedBios[bioIdx] || null
 
   async function act(type, payload = {}) {
-    const res = await fetch('/api/characters/action', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type, characterId: c.id, userId, payload }),
-    })
-    const data = await res.json()
-    if (!res.ok) {
-      onError(data.error || '操作失败')
-      return null
+    if (detailLoading) return null
+    setDetailLoading(true)
+    try {
+      const res = await fetch('/api/characters/action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, characterId: c.id, userId, payload }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        onError(data.error || '操作失败')
+        return null
+      }
+      return data
+    } finally {
+      setDetailLoading(false)
     }
-    return data
   }
 
   async function refresh() {
@@ -339,11 +354,17 @@ function DetailModal({ userId, initial, onClose, onChanged, onError }) {
       e.target.value = ''
       return
     }
-    const b64 = await fileToBase64(file)
-    await act('addPhoto', { base64: b64 })
-    setShowAddPhoto(false)
-    setPhotoIdx(0)
-    await refresh()
+    if (detailLoading) return
+    setDetailLoading(true)
+    try {
+      const b64 = await fileToBase64(file)
+      await act('addPhoto', { base64: b64 })
+      setShowAddPhoto(false)
+      setPhotoIdx(0)
+      await refresh()
+    } finally {
+      setDetailLoading(false)
+    }
   }
 
   async function handleAddBio() {
@@ -387,35 +408,51 @@ function DetailModal({ userId, initial, onClose, onChanged, onError }) {
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
       <div className="bg-white rounded-lg max-w-sm w-full p-6 max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-start mb-3">
-          <h2 className="font-bold text-lg" style={{ color: '#2a2420' }}>{c.name}</h2>
+          <h2 className="font-bold text-lg" style={{ color: '#2a2420' }}>{c.name || ''}</h2>
           <button onClick={onClose} className="text-sm" style={{ color: '#9a8f7a' }}>关闭</button>
         </div>
 
         <div className="flex flex-col items-center mb-4">
           <div className="w-24 h-24 rounded-full overflow-hidden flex items-center justify-center border" style={{ backgroundColor: '#ded2ba', borderColor: '#c9bda4' }}>
             {currentPhoto ? (
-              <img src={currentPhoto.base64} alt={c.name} className="w-full h-full object-cover" />
+              <img src={currentPhoto.base64} alt={c.name || ''} className="w-full h-full object-cover" />
             ) : (
-              <span className="text-sm px-1" style={{ color: '#6b5f4a' }}>{c.name}</span>
+              <span className="text-sm px-1" style={{ color: '#6b5f4a' }}>{c.name || ''}</span>
             )}
           </div>
           {sortedPhotos.length > 1 && (
             <div className="flex items-center gap-3 mt-2 text-sm" style={{ color: '#8a8072' }}>
-              <button onClick={() => setPhotoIdx((photoIdx - 1 + sortedPhotos.length) % sortedPhotos.length)}>‹</button>
+              <button
+                disabled={detailLoading}
+                onClick={() => setPhotoIdx((photoIdx - 1 + sortedPhotos.length) % sortedPhotos.length)}
+              >‹</button>
               <span>{photoIdx + 1}/{sortedPhotos.length}</span>
-              <button onClick={() => setPhotoIdx((photoIdx + 1) % sortedPhotos.length)}>›</button>
+              <button
+                disabled={detailLoading}
+                onClick={() => setPhotoIdx((photoIdx + 1) % sortedPhotos.length)}
+              >›</button>
             </div>
           )}
           <div className="flex gap-2 mt-2">
-            <button onClick={likePhoto} className="text-xs px-2 py-1 rounded border" style={{ borderColor: '#d8cfbe' }}>
-              👍 {currentPhoto ? currentPhoto.likes.length : 0}
+            <button
+              disabled={detailLoading}
+              onClick={likePhoto}
+              className="text-xs px-2 py-1 rounded border"
+              style={{ borderColor: '#d8cfbe' }}
+            >
+              👍 {currentPhoto?.likes?.length || 0}
             </button>
-            <button onClick={() => setShowAddPhoto(true)} className="text-xs px-2 py-1 rounded border" style={{ borderColor: '#d8cfbe' }}>
+            <button
+              disabled={detailLoading}
+              onClick={() => setShowAddPhoto(true)}
+              className="text-xs px-2 py-1 rounded border"
+              style={{ borderColor: '#d8cfbe' }}
+            >
               上传照片
             </button>
           </div>
           {showAddPhoto && (
-            <input type="file" accept="image/*" onChange={handleAddPhoto} className="text-xs mt-2" />
+            <input disabled={detailLoading} type="file" accept="image/*" onChange={handleAddPhoto} className="text-xs mt-2" />
           )}
         </div>
 
@@ -425,29 +462,51 @@ function DetailModal({ userId, initial, onClose, onChanged, onError }) {
           </p>
           {sortedBios.length > 1 && (
             <div className="flex items-center gap-3 mt-2 text-sm" style={{ color: '#8a8072' }}>
-              <button onClick={() => setBioIdx((bioIdx - 1 + sortedBios.length) % sortedBios.length)}>‹</button>
+              <button
+                disabled={detailLoading}
+                onClick={() => setBioIdx((bioIdx - 1 + sortedBios.length) % sortedBios.length)}
+              >‹</button>
               <span>{bioIdx + 1}/{sortedBios.length}</span>
-              <button onClick={() => setBioIdx((bioIdx + 1) % sortedBios.length)}>›</button>
+              <button
+                disabled={detailLoading}
+                onClick={() => setBioIdx((bioIdx + 1) % sortedBios.length)}
+              >›</button>
             </div>
           )}
           <div className="flex gap-2 mt-2">
-            <button onClick={likeBio} className="text-xs px-2 py-1 rounded border" style={{ borderColor: '#d8cfbe' }}>
-              👍 {currentBio ? currentBio.likes.length : 0}
+            <button
+              disabled={detailLoading}
+              onClick={likeBio}
+              className="text-xs px-2 py-1 rounded border"
+              style={{ borderColor: '#d8cfbe' }}
+            >
+              👍 {currentBio?.likes?.length || 0}
             </button>
-            <button onClick={() => setShowAddBio(!showAddBio)} className="text-xs px-2 py-1 rounded border" style={{ borderColor: '#d8cfbe' }}>
+            <button
+              disabled={detailLoading}
+              onClick={() => setShowAddBio(!showAddBio)}
+              className="text-xs px-2 py-1 rounded border"
+              style={{ borderColor: '#d8cfbe' }}
+            >
               撰写简介
             </button>
           </div>
           {showAddBio && (
             <div className="mt-2">
               <textarea
+                disabled={detailLoading}
                 value={newBioText}
                 onChange={e => setNewBioText(e.target.value)}
                 rows={3}
                 className="w-full border rounded px-2 py-1 text-sm"
                 style={{ borderColor: '#d8cfbe' }}
               />
-              <button onClick={handleAddBio} className="text-xs px-3 py-1 rounded text-white mt-1" style={{ backgroundColor: '#2a2420' }}>
+              <button
+                disabled={detailLoading}
+                onClick={handleAddBio}
+                className="text-xs px-3 py-1 rounded text-white mt-1"
+                style={{ backgroundColor: '#2a2420' }}
+              >
                 提交
               </button>
             </div>
@@ -460,6 +519,7 @@ function DetailModal({ userId, initial, onClose, onChanged, onError }) {
             {TIERS.map(t => (
               <button
                 key={t.level}
+                disabled={detailLoading}
                 onClick={() => rate(t.level)}
                 className="px-3 py-1 rounded text-white text-sm"
                 style={{
@@ -474,14 +534,24 @@ function DetailModal({ userId, initial, onClose, onChanged, onError }) {
         </div>
 
         <div className="flex justify-between items-center pt-3 border-t" style={{ borderColor: '#eee' }}>
-          <button onClick={handleWithdraw} className="text-xs" style={{ color: c.iWithdrew ? '#a8332b' : '#8a8072' }}>
-            申请下架 ({c.withdrawCount}/10)
+          <button
+            disabled={detailLoading}
+            onClick={handleWithdraw}
+            className="text-xs"
+            style={{ color: c.iWithdrew ? '#a8332b' : '#8a8072' }}
+          >
+            申请下架 ({c.withdrawCount || 0}/10)
           </button>
-          <button onClick={handleDeleteOrHide} className="text-xs" style={{ color: '#a8332b' }}>
+          <button
+            disabled={detailLoading}
+            onClick={handleDeleteOrHide}
+            className="text-xs"
+            style={{ color: '#a8332b' }}
+          >
             {c.isMine ? '删除' : '从我的列表中删除'}
           </button>
         </div>
       </div>
     </div>
   )
-}
+      }
