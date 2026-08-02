@@ -46,7 +46,7 @@ export default function Page() {
   useEffect(() => {
     const id = getUserId()
     setUserId(id)
-    if (!localStorage.getItem('seenNotice')) setShowNotice(true)
+    setShowNotice(true)
     load(id)
   }, [])
 
@@ -58,7 +58,6 @@ export default function Page() {
   }
 
   function closeNotice() {
-    localStorage.setItem('seenNotice', '1')
     setShowNotice(false)
   }
 
@@ -73,7 +72,7 @@ export default function Page() {
   return (
     <div className="max-w-3xl mx-auto py-10 px-4">
       <h1 className="text-2xl font-bold text-center mb-6" style={{ color: '#2a2420' }}>
-        从夯到拉锐评25中所有老师
+        从夯到拉锐评25中所有学生
       </h1>
 
       <div className="rounded-lg overflow-hidden border" style={{ borderColor: '#d8cfbe' }}>
