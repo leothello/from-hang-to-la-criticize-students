@@ -181,7 +181,7 @@ function NoticeModal({ onClose }) {
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
       <div className="bg-white rounded-lg max-w-sm w-full p-6 text-sm leading-relaxed" style={{ color: '#3a332b' }}>
         <p>
-          本网站用于你对该学校老师进行评价，你可以上传，添加新的人物，可以为所有的人物进行评价或撰写评语，为别人的评语点赞。请注意文明用语。
+          本网站用于你对该学校学生进行评价，请勿上传无关内容。服务器性能垃圾，进入如果看不到内容请稍候片刻（片刻？）。进行交互（上传，点赞…）可能遇到延迟，请静静等待不要重复操作。谢谢使用，有问题，建议，诉求请联系作者，邮箱：leothellogracive@gmail.com
         </p>
         <button
           onClick={onClose}
