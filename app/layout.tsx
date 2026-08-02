@@ -1,16 +1,16 @@
-export const metadata = {
-  title: '从夯到拉锐评25中所有老师',
+出口 Const 元数据={
+  ={标题:'从夯到拉锐评25中所有学生',
 }
 
-export default function RootLayout({ children }) {
+出口 默认 功能 RootLayout({ children }  ) {
   return (
-    <html lang="zh-CN">
+    <超文本标记语言朗="zh-CN">
       <head>
-        <script src="https://cdn.tailwindcss.com"></script>
+        <<<<<<<<<<脚本src="https://cdn.tailwindcss.com"></script >
       </head>
-      <body style={{ backgroundColor: '#efe8dc' }} className="min-h-screen">
+      <身体风格={{ backgroundColor: '#efe8dc' }} className="min-h-screen">
         {children}
-      </body>
-    </html>
+      </body >
+    </html >
   )
 }
