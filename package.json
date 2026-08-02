@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "build:cf": "npx @opennextjs/cloudflare migrate --force && opennextjs-cloudflare build --dangerouslyUseUnsupportedNextVersion"
+    "build:cf": "node -e \"require('fs').writeFileSync('open-next.config.ts', 'import { defineCloudflareConfig } from \\\"@opennextjs/cloudflare\\\";\\n\\nexport default defineCloudflareConfig({});\\n')\" && opennextjs-cloudflare build --dangerouslyUseUnsupportedNextVersion"
   },
   "dependencies": {
     "@upstash/redis": "^1.34.0",
